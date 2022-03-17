@@ -20,21 +20,28 @@ from urllib.parse import urlencode
 S_URL_V1 = "https://api.binance.com/sapi/v1"
 
 # Specify the api_key and secret_key with your API Key and secret_key
-api_key = "your_api_key"
-secret_key = "your_secret_key "
+api_key = ""
+secret_key = ""
 
 # Specify the four input parameters below:
-symbol = "ADAUSDT"  # specify the symbol name
-startTime = 1635561504914  # specify the starttime
-endTime = 1635561604914  # specify the endtime
+symbol = "BTCUSDT"  # specify the symbol name
+startTime = 1609459200000  # specify the starttime
+endTime = 1612051200000  # specify the endtime
 dataType = "T_DEPTH"  # specify the dataType to be downloaded
+
+t = requests.get("https://api3.binance.com/api/v3/time").json()
+print(t)
+serverTime = t.get("serverTime")
+if serverTime is None:
+    print("failed to get time from binance")
+    exit(1)
+timestamp = str(serverTime)
 
 
 # Function to generate the signature
 def _sign(params={}):
     data = params.copy()
-    ts = str(int(1000 * time.time()))
-    data.update({"timestamp": ts})
+    data.update({"timestamp": timestamp})
     h = urlencode(data)
     h = h.replace("%40", "@")
 
@@ -78,10 +85,11 @@ Copy the link to the browser and download the data. The link would expire after 
 - A message reminding you to re-run the code and download the data hours later.
 Sample output will be like the following: {'link': 'Link is preparing; please request later. Notice: when date range is very large (across months), we may need hours to generate.'}
 """
-
-timestamp = str(
-    int(1000 * time.time())
-)  # current timestamp which serves as an input for the params variable
+# use timestamp from binance instead.
+# some PCs are not synchronized with NTP server, so this won't work
+#timestamp = str(
+#    int(1000 * time.time())
+#)  # current timestamp which serves as an input for the params variable
 paramsToObtainDownloadID = {
     "symbol": symbol,
     "startTime": startTime,
@@ -93,8 +101,13 @@ paramsToObtainDownloadID = {
 # Calls the "post" function to obtain the download ID for the specified symbol, dataType and time range combination
 path = "%s/futuresHistDataId" % S_URL_V1
 resultDownloadID = post(path, paramsToObtainDownloadID)
-print(resultDownloadID)
-downloadID = resultDownloadID.json()["id"]
+print(resultDownloadID.text)
+downloadID = resultDownloadID.json().get("id")
+
+if downloadID is None:
+    print("unable to get id from json response")
+    exit(-1)
+
 print(downloadID)  # prints the download ID, example: {'id': 324225}
 
 
@@ -102,5 +115,5 @@ print(downloadID)  # prints the download ID, example: {'id': 324225}
 paramsToObtainDownloadLink = {"downloadId": downloadID, "timestamp": timestamp}
 pathToObtainDownloadLink = "%s/downloadLink" % S_URL_V1
 resultToBeDownloaded = get(pathToObtainDownloadLink, paramsToObtainDownloadLink)
-print(resultToBeDownloaded)
+print(resultToBeDownloaded.text)
 print(resultToBeDownloaded.json())
